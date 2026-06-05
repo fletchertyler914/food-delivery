@@ -1,0 +1,45 @@
+{
+  "name": "food-delivery",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@11.5.0",
+  "engines": {
+    "node": ">=24.0.0",
+    "pnpm": ">=11.0.0"
+  },
+  "scripts": {
+    "prepare": "node -e \"if (!process.env.CI && process.env.NODE_ENV !== 'production' && !process.env.DOCKER_BUILD) require('child_process').execSync('husky', { stdio: 'inherit' })\"",
+    "dev": "pnpm --parallel --filter @food-delivery/api --filter @food-delivery/web dev",
+    "build": "pnpm -r --if-present build",
+    "lint": "pnpm -r --if-present lint && eslint .",
+    "lint:fix": "pnpm -r --if-present lint:fix && eslint . --fix",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "pnpm -r --if-present test",
+    "test:unit": "pnpm -r --if-present test:unit",
+    "test:integration": "pnpm --filter @food-delivery/api --if-present test:integration",
+    "test:e2e": "pnpm --filter @food-delivery/api --if-present test:e2e",
+    "test:smoke": "playwright test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:migrate": "pnpm --filter @food-delivery/api --if-present db:migrate",
+    "db:seed": "pnpm --filter @food-delivery/api --if-present db:seed",
+    "generate": "pnpm --filter @food-delivery/api --if-present generate && pnpm --filter @food-delivery/api --if-present openapi:json && pnpm --filter @food-delivery/api-client --if-present generate && pnpm --filter @food-delivery/api-client --if-present build"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.0.2",
+    "@commitlint/config-conventional": "^21.0.2",
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.60.0",
+    "@types/node": "^24.12.4",
+    "eslint": "^10.4.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-import-resolver-typescript": "^4.4.4",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.7",
+    "prettier": "^3.8.3",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.56.0"
+  }
+}

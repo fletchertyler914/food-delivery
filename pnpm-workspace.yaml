@@ -1,0 +1,22 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+engineStrict: true
+strictPeerDependencies: false
+autoInstallPeers: true
+sharedWorkspaceLockfile: true
+saveExact: false
+preferWorkspacePackages: true
+
+allowBuilds:
+  "@nestjs/core": true
+  "@prisma/engines": true
+  "@scarf/scarf": false
+  cpu-features: true
+  esbuild: true
+  msw: true
+  prisma: true
+  protobufjs: true
+  ssh2: true
+  unrs-resolver: true

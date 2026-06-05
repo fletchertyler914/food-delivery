@@ -1,0 +1,175 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  CUSTOMER
+  OWNER
+}
+
+enum OrderStatus {
+  PLACED
+  CANCELED
+  PROCESSING
+  IN_ROUTE
+  DELIVERED
+  RECEIVED
+}
+
+// Integer-cents and quantity CHECK constraints live in migration
+// 20260529150000_check_constraints_and_owner_denorm (not expressible in Prisma).
+
+model User {
+  id               String             @id @default(cuid())
+  email            String             @unique
+  passwordHash     String
+  name             String
+  role             UserRole
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  refreshTokens    RefreshToken[]
+  restaurants      Restaurant[]       @relation("RestaurantOwner")
+  orders           Order[]            @relation("CustomerOrders")
+  blockedCustomers Block[]            @relation("OwnerBlocks")
+  blockedByOwners  Block[]            @relation("CustomerBlocks")
+  statusEvents     OrderStatusEvent[] @relation("StatusEventActor")
+
+  @@index([role])
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Restaurant {
+  id          String   @id @default(cuid())
+  ownerId     String
+  name        String
+  description String
+  imageUrl    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  owner       User     @relation("RestaurantOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  meals       Meal[]
+  coupons     Coupon[]
+  orders      Order[]
+
+  @@index([ownerId])
+}
+
+model Meal {
+  id           String      @id @default(cuid())
+  restaurantId String
+  name         String
+  description  String
+  priceCents   Int
+  imageUrl     String?
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  restaurant   Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  orderItems   OrderItem[]
+
+  @@index([restaurantId, isActive, createdAt])
+  @@index([isActive])
+}
+
+model Coupon {
+  id           String     @id @default(cuid())
+  restaurantId String
+  code         String
+  percentOff   Int
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  orders       Order[]
+
+  @@unique([restaurantId, code])
+  @@index([restaurantId, createdAt])
+  @@index([isActive])
+}
+
+model Order {
+  id            String             @id @default(cuid())
+  customerId    String
+  restaurantId  String
+  // Denormalized from `restaurant.ownerId` for owner-scoped queries.
+  // No FK to User: owner accounts may be removed in future admin flows
+  // without rewriting historical orders; integrity is enforced at write time.
+  ownerId       String
+  couponId      String?
+  status        OrderStatus        @default(PLACED)
+  tipCents      Int                @default(0)
+  subtotalCents Int
+  discountCents Int                @default(0)
+  totalCents    Int
+  placedAt      DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  customer      User               @relation("CustomerOrders", fields: [customerId], references: [id], onDelete: Restrict)
+  restaurant    Restaurant         @relation(fields: [restaurantId], references: [id], onDelete: Restrict)
+  coupon        Coupon?            @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  items         OrderItem[]
+  statusEvents  OrderStatusEvent[]
+
+  @@index([customerId, placedAt])
+  @@index([customerId, status, placedAt])
+  @@index([restaurantId, placedAt])
+  @@index([ownerId, placedAt])
+  @@index([ownerId, status, placedAt])
+  @@index([status])
+}
+
+model OrderItem {
+  id                 String @id @default(cuid())
+  orderId            String
+  mealId             String
+  nameSnapshot       String
+  priceCentsSnapshot Int
+  quantity           Int
+  order              Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  meal               Meal   @relation(fields: [mealId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([mealId])
+}
+
+model OrderStatusEvent {
+  id         String       @id @default(cuid())
+  orderId    String
+  fromStatus OrderStatus?
+  toStatus   OrderStatus
+  actorId    String
+  actorRole  UserRole
+  createdAt  DateTime     @default(now())
+  order      Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  actor      User         @relation("StatusEventActor", fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([orderId, createdAt])
+  @@index([actorId])
+}
+
+model Block {
+  id         String   @id @default(cuid())
+  ownerId    String
+  customerId String
+  createdAt  DateTime @default(now())
+  owner      User     @relation("OwnerBlocks", fields: [ownerId], references: [id], onDelete: Cascade)
+  customer   User     @relation("CustomerBlocks", fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerId, customerId])
+  @@index([customerId])
+}

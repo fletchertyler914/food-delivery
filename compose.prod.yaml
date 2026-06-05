@@ -1,0 +1,73 @@
+# Bundled prod-shape stack for local validation and the live demo.
+#
+# This is NOT the production deployer. Real production runs the same
+# images CI builds (see `.github/workflows/ci.yml`) inside an orchestrator
+# (k8s / ECS / Fly / etc.).
+# Per ADR 0005 the bundle is built once with relative URLs and the web
+# container's nginx is the single front door — so this file exposes
+# only the web port and proxies `/api/`, `/socket.io/`, `/docs` through
+# it. The API container has no published port; reach it via the web
+# origin at `http://localhost:5173/api/...` and `…/docs`.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: food_delivery
+      POSTGRES_PASSWORD: food_delivery
+      POSTGRES_DB: food_delivery
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U food_delivery -d food_delivery"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    # `environment:` wins over `env_file`, so the values here are the
+    # ones the container actually sees regardless of what `.env` has.
+    # We pin deploy-shaped settings here because `.env` is also used by
+    # host-side development and commonly contains NODE_ENV=development
+    # plus a wider WEB_ORIGIN allowlist for LAN device testing.
+    # Demo conveniences (intentional for interview/local validation):
+    # PROD_JWT_ACCESS_SECRET falls back to a local demo secret when unset.
+    # SEED_DATABASE / ALLOW_PROD_SEED default to true for demo data on boot.
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://food_delivery:food_delivery@postgres:5432/food_delivery?schema=public
+      WEB_ORIGIN: ${PROD_WEB_ORIGIN:-http://localhost:5173}
+      JWT_ACCESS_SECRET: ${PROD_JWT_ACCESS_SECRET:-local-prod-demo-secret-at-least-32-chars}
+      SEED_DATABASE: ${SEED_DATABASE:-true}
+      ALLOW_PROD_SEED: ${ALLOW_PROD_SEED:-true}
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    ports:
+      - "5173:8080"
+
+volumes:
+  postgres-data:

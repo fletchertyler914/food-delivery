@@ -1,0 +1,47 @@
+---
+description: Order domain invariants (state machine, money, snapshots)
+globs: apps/api/src/modules/{orders,coupons,blocks}/**/*.ts
+alwaysApply: false
+---
+
+# Domain Rules
+
+## Order Status State Machine
+
+```
+PLACED ──► PROCESSING ──► IN_ROUTE ──► DELIVERED ──► RECEIVED
+   │
+   └──► CANCELED
+```
+
+- `PLACED` is the only initial state.
+- `CANCELED` is reachable **only** from `PLACED`. By customer or owner.
+- `PROCESSING → IN_ROUTE → DELIVERED` is owner-only.
+- `RECEIVED` is customer-only and only from `DELIVERED`.
+- **No backward transitions, ever.** `canTransition` returns a discriminated result; never `boolean`.
+
+All transitions write an `OrderStatusEvent(fromStatus, toStatus, actorId, actorRole)` in the same transaction as the status update.
+
+## Money
+
+- Type alias: `type Cents = number & { readonly __brand: "Cents" }`.
+- Multiply/discount with integer math. Round with `Math.floor` for discounts.
+- Total = `subtotal - discount + tip`. Never apply discount to tip.
+- Domain helpers throw typed `DomainError` subclasses (`InvalidCentsError`, `InvalidDiscountPercentError`, `EmptyOrderError`, `InvalidQuantityError`) — never untyped `RangeError`. They all carry `code: "INVALID_PRICING_INPUT"` so the API renders consistent problem+json.
+
+## Coupons
+
+- Coupon belongs to **one** restaurant. Reject if coupon's `restaurantId !== order.restaurantId`.
+- `percentOff` is `1..100` (enforced by Postgres `Coupon_percentOff_range_check` in migration `20260529150000_check_constraints_and_owner_denorm`, plus DTO + zod schema). `code` is uppercase alphanumeric (`A-Z0-9_-`), 3..32 chars; the web form uppercases before submit.
+- Inactive coupons reject with `COUPON_INACTIVE`.
+
+## Blocks
+
+- A `Block(ownerId, customerId)` rejects new orders from that customer at any restaurant owned by `ownerId`.
+- Check the block at `OrdersService.place`, not in the controller. Also re-checked on `duplicate`.
+
+## Snapshots
+
+- `OrderItem.priceCentsSnapshot` and `OrderItem.nameSnapshot` are written at order time and never updated.
+- `duplicate` is only allowed once the original order is complete (`RECEIVED` for the customer). Active or canceled orders cannot be reordered.
+- `duplicate` rebuilds from **current** meal prices, not snapshots. Inactive meals are dropped with a warning in the response.

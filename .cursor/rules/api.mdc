@@ -1,0 +1,66 @@
+---
+description: NestJS API conventions, validation layers, and error model
+globs: apps/api/**/*.ts
+alwaysApply: false
+---
+
+# API Conventions
+
+## Module Anatomy
+
+Each module under `src/modules/<name>/` contains:
+
+- `<name>.module.ts` — Nest module wiring
+- `<name>.controller.ts` — HTTP shell only; no business logic
+- `<name>.service.ts` — orchestration; calls domain + repository
+- `domain/` — pure functions and types; **no Nest imports, no Prisma imports**
+- `dto/` — request/response DTOs with `class-validator` decorators
+- `*.spec.ts` next to the file it tests
+
+Controllers must be thin: validate (`@Body() dto: SomeDto`), authorize (decorators), delegate (`service.do(dto)`), return.
+
+## Validation Layers (enforce all six)
+
+1. OpenAPI types — `@ApiProperty()` on every DTO field; mark optional query params with `@ApiQuery({ name, required: false, type })`. Client regenerated on schema change.
+2. DTOs + global `ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true })`.
+3. Guards: `JwtAuthGuard` (global, opt-out via `@Public()`), `RolesGuard` (`@Roles('OWNER')`), `OrderAccessGuard`.
+4. Domain invariants in services — throw `DomainError` subclasses.
+5. Prisma schema constraints — uniques, FKs, enums, `CHECK`s.
+6. Frontend mirrors DTOs via zod — UX only, never the source of truth.
+
+## Errors
+
+- Define one error per business rule: `CustomerBlockedError`, `InvalidStatusTransitionError`, `InvalidCentsError`, etc.
+- Each carries a stable `code` from `DomainErrorCode`. The global filter maps to `application/problem+json`.
+- **Never** `throw new Error('...')` or `throw new RangeError('...')` in domain or service code. Domain helpers (e.g. `cents`, `discountCents`, `computePricing`) throw typed `DomainError` subclasses so problem+json codes stay stable.
+- **Guards throw typed `DomainError`s too.** `RolesGuard` throws `ResourceForbiddenError` (not Nest's `ForbiddenException`) so authorization failures render the same problem+json shape as everything else.
+- The global filter logs unknown (non-`DomainError`, non-`HttpException`) throwables via `Logger.error` before returning a generic 500, so unexpected failures are never swallowed silently.
+
+## Pagination
+
+- Cursor pagination goes through the shared helpers in `common/pagination/paginated-response.dto.ts`: `paginateSlice` (over-fetch by one, slice, derive `nextCursor`) and `mapPaginated` (map entities → DTOs while preserving `nextCursor`). Controllers assemble responses with `mapPaginated`; services return `paginateSlice(rows, take)`.
+- **Every cursor query needs a unique tiebreaker.** `orderBy` always ends with `{ id: "desc" }` alongside the non-unique sort key (`createdAt`, `name`, `placedAt`) so rows are never skipped or duplicated across pages.
+
+## Updates
+
+- PATCH services call `assertNonEmptyUpdate(data)` (`common/util/`) to reject bodies where every field was omitted, instead of issuing a no-op write.
+
+## Auth Tokens
+
+- Refresh-token consumption is atomic: a single `updateMany({ where: { tokenHash, revokedAt: null, expiresAt: { gt: now } }, data: { revokedAt: now } })` enforces the invariant that two concurrent refresh requests can never both succeed. `RefreshToken.tokenHash` is `@@unique`.
+- Access tokens are short-lived JWT (`JWT_ACCESS_TTL`); refresh tokens are opaque, hashed at rest, and rotated on use.
+
+## Resources are Soft-Lifecycle
+
+- Restaurants are not deletable; they have FK-`Restrict` references from orders. Owners edit name/description; meals and coupons can be deactivated.
+- Public meal listing returns active meals only. Owners list all (active + inactive) via the authenticated `GET /restaurants/:restaurantId/meals/all`.
+
+## Async & Side Effects
+
+- Always `await`. No floating promises (eslint catches it).
+- Domain events go through `EventEmitter2`; the WS gateway is a listener. Services never call sockets directly.
+- DB writes that touch multiple tables run inside `prisma.$transaction`.
+
+## Same-Origin Topology
+
+- The API does not hand out CORS by default. The Socket.IO gateway only allows origins listed in `WEB_ORIGIN` (or no Origin header, which is the case for non-browser clients). In production, use one canonical origin; local development may use comma-separated origins for LAN device testing. Production requests come through the web nginx and never trigger CORS; this constraint exists only to lock down direct API access.

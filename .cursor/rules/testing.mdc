@@ -1,0 +1,48 @@
+---
+description: Testing pyramid — which layer to use, and how
+globs: **/*.{spec,test}.{ts,tsx}
+alwaysApply: false
+---
+
+# Testing Layers
+
+Pick the **lowest** layer that proves the behavior.
+
+## L1 — Unit (pure)
+
+- Target: state machine, pricing, coupon policy, role checks.
+- No Nest, no Prisma, no I/O. Plain `describe/it`.
+- CI enforces coverage thresholds in Vitest config:
+  - API (`apps/api/vitest.unit.config.ts`): `85%` statements/functions/lines, `80%` branches. The `include` set covers `src/modules/**/domain/**`, the problem-details filter, guards, common utilities/pagination, the users/auth services, and health.
+  - Web app (`apps/web/vite.config.ts`): `78%` statements, `76%` functions, `77%` lines, `65%` branches.
+- Run coverage locally with `pnpm exec vitest ... --coverage` (see `ARCHITECTURE.md` for exact commands). The GitHub Actions `coverage` job uses the same invocations.
+- One assertion idea per test. Use table-driven `it.each` for exhaustive matrices (e.g. `canTransition`).
+
+## L2 — Integration (Testcontainers Postgres)
+
+- Boot a real Postgres in Docker. Apply migrations. Reset between tests with a `TRUNCATE ... RESTART IDENTITY` helper.
+- Test the **service** (not the controller) against the real DB.
+- One test per documented business rule. Name tests after the rule, not the function.
+
+## L3 — API e2e (Supertest)
+
+- Boot the full Nest app once per file. Use a test DB and a `testFixtures()` helper.
+- Cover: happy path, RBAC denials (403), validation failures (400), state transitions across roles.
+- Snapshot the response shape against the generated OpenAPI types to catch drift.
+
+## L4 — Realtime
+
+- `socket.io-client` against the booted app.
+- Verify: unauthenticated handshake rejected; per-user room isolation; owner receives `order.placed` for their restaurant.
+
+## L5 — Web (Vitest + Testing Library + MSW)
+
+- Mock at the network layer with MSW — exercise the real query/cache code.
+- Prefer `screen.findByRole(...)`, never `container.querySelector`.
+- Test behavior, not implementation. No snapshot tests for components.
+
+## Anti-patterns
+
+- ❌ Mocking `PrismaService` to test business logic. Use Testcontainers instead.
+- ❌ One giant e2e covering everything. Many small ones.
+- ❌ `await new Promise(r => setTimeout(r, ...))` in tests. Use `waitFor`.

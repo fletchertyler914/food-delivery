@@ -1,0 +1,75 @@
+---
+description: Web app conventions (React, MUI, TanStack Query, Zustand, forms, router)
+globs: apps/web/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Web Conventions
+
+## Feature-Folder Layout
+
+`src/features/<name>/` contains pages, components, hooks, schemas, and stores for that feature. Cross-feature primitives live in `src/components/`. No feature imports from another feature's internals.
+
+Each feature with server state owns a `queries.ts` exporting:
+
+- A `<feature>Keys` factory: the single source of truth for query keys.
+- One `queryOptions(...)` factory per resource (`restaurantQuery`, `orderQuery`, `ownerCouponsQuery`, …).
+
+Loaders, components, and ws cache invalidations all reuse those factories so a key shape can never drift between layers.
+
+## State
+
+- **Server state:** TanStack Query. Use `useQuery(featureQuery(...))` against the shared `queryOptions`.
+- **Client state:** Zustand. One store per concern (`useAuthStore`, `useCartStore`).
+- **No `useEffect`-driven data fetching.** Always use a Query hook.
+
+## API Calls
+
+- Use the wrappers in `src/lib/api/*.api.ts`. Types come from `@food-delivery/api-client`.
+- **Use relative URLs only.** The web nginx (and the Vite dev proxy) reverse-proxies `/api/` and `/socket.io/` to the API. The bundle never embeds an absolute API host. There is no `apiConfig.baseUrl`, no `VITE_API_URL`, and no `VITE_WS_URL`. Do not reintroduce them.
+- The Socket.IO client connects to `/realtime`.
+
+## Routing
+
+- React Router **v7** data router (`react-router`). Imports come from `react-router`; only the browser `RouterProvider` lives in `react-router/dom`.
+- `apps/web/src/app/router.tsx` owns the route tree (`createBrowserRouter`). Pages are lazy-loaded.
+- **Auth and role guards live in `loader`s** (`throw redirect(...)`) — not in component wrappers. There is no `RequireAuth` / `RequireRole`.
+- **Loaders prefetch with `queryClient.ensureQueryData(featureQuery(...))`** so the page's `useQuery` resolves from cache. Loaders never duplicate fetch logic.
+- 404s and `ApiError`s render via `errorElement` (`RouteErrorBoundary`).
+
+## Icons
+
+- Import icons from `apps/web/src/lib/icons.tsx`, not `@mui/icons-material/*` directly. Lazy route chunks see `@mui/icons-material` defaults as module objects through Rollup's CJS interop in production, which crashes with React error #130. Add new icons as named `SvgIcon` wrappers in `lib/icons.tsx`. ESLint enforces this with `no-restricted-imports`.
+
+## Forms
+
+- `react-hook-form` + `zod` via `zodResolver(schema)`. **No manual `safeParse` in submit handlers.**
+- Schemas live in `features/<name>/<name>.schemas.ts` and mirror the API DTO shape (length, regex, range).
+- On API error, narrow on `error.code` (problem+json) and set the matching `react-hook-form` field error via `applyApiFormError`.
+
+## UI
+
+- MUI v7 with a design system in `src/theme/theme.ts` (Inter Variable, Saffron & Espresso palette, light/dark schemes, shadow scale, component defaults). See [ADR 0009](../../docs/adr/0009-design-system.md) and [ADR 0010](../../docs/adr/0010-dark-mode-and-palette.md).
+- **Compose shared primitives** from `src/components/` — `PageHeader`, `SectionHeader`, `EmptyState`, `StatusBadge`, `PriceTag`, `CoverImage`. Do not reinvent page headers, empty states, or status pills per feature.
+- **Confirm dialogs go through `ConfirmDialog`** (`src/components/ConfirmDialog.tsx`). It renders a centered modal on `sm+` and a bottom-sheet (slide-up, rounded top, safe-area aware, drag-handle) on `xs`. Do not hand-roll a `<Dialog>` for an "are you sure?" prompt and do not pass `fullScreen={isXs}` for short confirms — that pattern strands actions at the bottom of a near-empty viewport. Title is the question, description is the **consequence** (not a restatement of the title or the button label).
+- Auth pages use `features/auth/AuthShell.tsx` (split-screen scaffold with brand panel).
+- Date/ID display uses `src/lib/format/datetime.ts` (`formatDate`, `formatDateTime`, `formatRelative`, `shortId`).
+- **No inline `style={...}`** — use `sx` or styled components. No ad-hoc hex colors or box-shadows; pull from `theme.palette.*`, `theme.shape.*`, `theme.shadows[*]`. The only sanctioned literal colors are the warm hero/auth brand gradients and the `index.html` bootstrap background (which mirrors `background.default` to avoid a dark-mode load flash).
+- **Brand teal lives in `secondary`.** `secondary.main` is the canonical (lighter) teal in both schemes; `secondary.dark` is the deeper companion used for readable text on light tinted surfaces. Teal buttons/toasts use `secondary.contrastText` (white in light, espresso in dark). Reuse `secondaryInfoAlertSx(theme)` from `src/theme/css-vars.ts` for teal info callouts instead of re-deriving tint/border/text per feature.
+- **`cssVariables` is on (`colorSchemeSelector: "data"`).** `theme.palette.X` is locked to the *default* scheme, so **do not branch on `theme.palette.mode`** for scheme-specific styling — it won't track the active scheme. Use scheme-responsive token strings (`"secondary.dark"`), `alphaToken(theme, …)` (channel-based), or `theme.applyStyles("dark", …)`.
+- **`ConfirmDialog` `confirmColor`** defaults to `primary` for expected product actions (including routine order cancellation). Use `error` only for high-risk destructive flows like irreversible deletes; don't reach for `warning` (off-palette amber) as a button color.
+- Money is formatted at the edge with `formatCents(cents)` / `<PriceTag cents={...} />`; never store dollars.
+- Order-action buttons disabled with a tooltip explaining *why* (role or state machine). Tooltip copy should describe what the action does or why it's blocked — never restate the button label.
+- **Loading feedback is layered:** a route-loading `LinearProgress` top bar (driven by `useNavigation().state` in `App.tsx`), list **skeletons** that mirror the final layout, fallback `CircularProgress` for slow in-page queries, and `loading`/`disabled={…isPending}` on every mutation button. Errors use the shared `ErrorPanel` (with retry); empties use `EmptyState` (or short inline copy inside dashboard sub-sections).
+- **Motion stays minimal and accessible.** App-wide animation is limited to card hover, the `ConfirmDialog` bottom-sheet slide, the route-loading bar, and the `pageEnter` content fade. Any new motion must be gated behind `@media (prefers-reduced-motion: no-preference)`; there is no general animation system (ADR 0009/0010 keep one out of scope).
+
+## Real-time
+
+- `NotificationsProvider` opens the socket on login, joins the user room, and on each event:
+  1. Push a snackbar via `notistack`.
+  2. Invalidate the relevant React Query keys via the feature's `<feature>Keys` factory.
+- Components never open sockets themselves.
+
+## Provider Composition
+
+- `apps/web/src/app/UiProviders.tsx` is the single composition point for the visual + notification stack (`ThemeProvider` + `SnackbarProvider`). Both `AppProviders` and the test render helper consume it so production and tests render the same provider tree.

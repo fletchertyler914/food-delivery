@@ -1,0 +1,25 @@
+node_modules/
+dist/
+coverage/
+.turbo/
+.vite/
+.env
+.env.*
+!.env.example
+apps/api/prisma/dev.db
+pnpm-debug.log*
+*.tsbuildinfo
+.DS_Store
+
+# Test reporter output (Vitest JUnit, etc.)
+junit.xml
+**/junit.xml
+
+# Playwright artifacts
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+
+# Local-only scratchpad for ad-hoc screenshots, scripts, etc.
+.scratch/

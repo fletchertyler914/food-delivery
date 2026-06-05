@@ -1,0 +1,24 @@
+import type { components } from "@food-delivery/api-client";
+
+export type AuthResponse = components["schemas"]["AuthResponseDto"];
+export type AuthUser = components["schemas"]["AuthUserDto"];
+export type LoginInput = components["schemas"]["LoginDto"];
+export type SignupInput = components["schemas"]["SignupDto"];
+export type Restaurant = components["schemas"]["RestaurantResponseDto"];
+export type OwnerRestaurant = components["schemas"]["OwnerRestaurantResponseDto"];
+export type Meal = components["schemas"]["MealResponseDto"];
+export type Order = components["schemas"]["OrderResponseDto"];
+export type OrderStatus = Order["status"];
+export type OrderStatusEvent = components["schemas"]["OrderStatusEventResponseDto"];
+export type PlaceOrderInput = components["schemas"]["PlaceOrderDto"];
+export type DuplicateOrderResponse = components["schemas"]["DuplicateOrderResponseDto"];
+export type CreateRestaurantInput = components["schemas"]["CreateRestaurantDto"];
+export type UpdateRestaurantInput = components["schemas"]["UpdateRestaurantDto"];
+export type CreateMealInput = components["schemas"]["CreateMealDto"];
+export type UpdateMealInput = components["schemas"]["UpdateMealDto"];
+export type Coupon = components["schemas"]["CouponResponseDto"];
+export type CouponPreview = components["schemas"]["CouponPreviewResponseDto"];
+export type CreateCouponInput = components["schemas"]["CreateCouponDto"];
+export type UpdateCouponInput = components["schemas"]["UpdateCouponDto"];
+export type Block = components["schemas"]["BlockResponseDto"];
+export type UserRole = AuthUser["role"];

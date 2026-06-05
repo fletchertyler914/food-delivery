@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Food Delivery</title>
+    <!--
+      Bootstrap background before MUI's runtime styles inject, so a reload
+      in dark mode doesn't flash white. Mirrors theme.background.default
+      for each scheme; the script below sets data-light / data-dark.
+    -->
+    <style>
+      html {
+        background-color: #fbf7f0;
+      }
+      html[data-dark] {
+        background-color: #1a1310;
+      }
+    </style>
+    <script src="/theme-init.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

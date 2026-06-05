@@ -1,0 +1,33 @@
+---
+description: Repository conventions, monorepo layout, and non-negotiable invariants
+alwaysApply: true
+---
+
+# Food Delivery Repo Rules
+
+## Stack (do not deviate without explicit approval)
+
+- Monorepo: pnpm workspaces. Node `>=24.0.0` (`.nvmrc` pins `24`; use `fnm use 24`). pnpm `>=11`.
+- API: NestJS + Prisma + PostgreSQL. REST + OpenAPI. Socket.IO for notifications.
+- Web: React 19 + Vite + MUI v7 + TanStack Query + Zustand + react-hook-form + zod.
+- Tests: Vitest/Jest (unit), Testcontainers (integration), Supertest (API e2e), Testing Library + MSW (web), Playwright (smoke, optional).
+
+## Layout
+
+- `apps/api/` — NestJS service. Domain logic in `src/modules/*/domain/`, never in controllers.
+- `apps/web/` — React SPA. Server state in TanStack Query, client state in Zustand.
+- `packages/api-client/` — types generated from the API's OpenAPI doc. Do **not** hand-edit `src/generated/`.
+
+## Non-negotiable Invariants
+
+- **Money is integer cents.** Never `number` for currency outside that contract. Never `parseFloat` it.
+- **Order items are snapshotted** (`nameSnapshot`, `priceCentsSnapshot`). Historical orders never change.
+- **Order status is a state machine.** Transitions only via `OrderStatusMachine.canTransition`. No ad-hoc status writes anywhere.
+- **One restaurant per order.** Enforced in `OrdersService.place`. The cart enforces it client-side too.
+- **Errors are typed.** Throw subclasses of `DomainError` with a stable `code`. The exception filter renders `application/problem+json`.
+
+## Commits & Branches
+
+- Conventional Commits (`feat:`, `fix:`, `chore:`, `refactor:`, `test:`, `docs:`, `ci:`). Enforced by commitlint.
+- Branch names: `feat/...`, `fix/...`, `chore/...`.
+- Never commit `.env`, secrets, or generated files.
