@@ -17,7 +17,7 @@ Key highlights:
 - Same-origin web topology (nginx reverse proxy, relative URLs only)
 - Layered testing: unit, integration (Testcontainers), API e2e, web (MSW), Playwright smoke
 
-For architecture deep-dives, design trade-offs, and a suggested demo flow, see [ARCHITECTURE.md](ARCHITECTURE.md).
+For architecture deep-dives, design trade-offs, and a suggested demo flow, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Stack
 
@@ -25,6 +25,25 @@ For architecture deep-dives, design trade-offs, and a suggested demo flow, see [
 - **Web:** React 19, Vite, MUI v7, TanStack Query, Zustand, React Router v7 (data router)
 - **Quality:** strict TypeScript, layered validation, typed domain errors, unit/integration/e2e tests
 - **DevOps:** pnpm monorepo, Docker Compose, GitHub Actions
+
+## Repository layout
+
+```
+apps/
+  api/                 NestJS REST API + Prisma + domain modules
+  web/                 React SPA (Vite, MUI, TanStack Query)
+packages/
+  api-client/          OpenAPI-generated typed client
+docs/
+  ARCHITECTURE.md      Design walkthrough + demo script
+  adr/                 Architecture Decision Records
+tests/
+  smoke/               Playwright happy-path smoke specs
+```
+
+Tooling configs (`eslint`, `typescript`, `playwright`, `compose`) stay at the
+repo root where their runners expect them. See [docs/README.md](docs/README.md)
+for the full documentation index.
 
 ## Architecture
 
@@ -78,7 +97,7 @@ Customer flow: browse restaurants → open meal details → add meals to cart �
 Owner flow: sign in as `owner@example.com` → open **Dashboard** in the nav → manage restaurants, meals, coupons, and blocked customers → advance orders from `/orders/:orderId`.
 
 For a concise demo script, architecture talking points, and validation
-commands, see [ARCHITECTURE.md](ARCHITECTURE.md).
+commands, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ### Bundled prod-shape stack (local validation / demo)
 

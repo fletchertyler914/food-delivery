@@ -1,5 +1,8 @@
 # Architecture Decision Records
 
+See also the [documentation index](../README.md) and
+[Architecture & Design Decisions](../ARCHITECTURE.md) walkthrough.
+
 These ADRs follow [MADR 4.0.0](https://adr.github.io/madr/) and document the
 load-bearing decisions in this repository. Each ADR is immutable once
 accepted; supersede it with a new ADR instead of editing the existing one.

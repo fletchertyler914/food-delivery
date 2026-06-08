@@ -41,7 +41,7 @@ packages/api-client/  OpenAPI-generated client
 
 ## Architecture walkthrough
 
-For a demo script, architecture talking points, and validation commands, see [`ARCHITECTURE.md`](ARCHITECTURE.md).
+For a demo script, architecture talking points, and validation commands, see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## Common commands
 

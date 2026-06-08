@@ -10,17 +10,19 @@ Conventional Commits drive entries — see `commitlint.config.mjs`.
 
 ### Added
 
+- **`docs/README.md`** — documentation index linking the architecture walkthrough and ADR catalog.
 - **Page entrance animation.** Routed content fades/slides in on navigation via a `pageEnter` keyframe, gated behind `prefers-reduced-motion` so motion-sensitive users get an instant swap. Complements the existing route-loading top bar (`LinearProgress` on `navigation.state`) and per-action button loaders.
 - **Production hardening pass.** Query-shape composite indexes on `Meal`, `Coupon`, and `Order` (with migration `20260602194500_query_shape_indexes`); shared cursor-pagination helpers (`paginateSlice` / `mapPaginated`) consumed by every list controller/service; `assertNonEmptyUpdate` guard rejecting no-op PATCH bodies; and a broad unit/regression suite (problem-details filter, `RolesGuard`/`JwtAuthGuard`, health, `UsersService` P2002 mapping, pagination helpers, router loaders, auth/checkout schemas). API coverage scope widened beyond `domain/` to services, guards, and common utilities.
 - **Themed root background.** `index.html` paints `background.default` per scheme before MUI's runtime styles load (no dark-mode load flash), and CssBaseline now themes `<html>` so the overscroll/canvas area matches the active scheme.
 - **Guest cart and checkout flow:** `/cart` is open to anonymous visitors, customers, and owners. Auth is required only at `/checkout`, which shows a demo payment form (no real PSP). Sign-in and sign-up preserve `?from=` through cross-links and header/footer CTAs so users return to their intended page after auth.
 - **Dark mode** — Saffron & Espresso palette (warm cream light theme, espresso dark theme) with a header theme toggle cycling system → light → dark; preference persists in localStorage.
-- **`ARCHITECTURE.md`** — demo script, architecture talking points, validation commands, scope boundaries, and scale path.
+- **`docs/ARCHITECTURE.md`** — demo script, architecture talking points, validation commands, scope boundaries, and scale path.
 - **Meals:** owners can edit meal details (`PATCH /meals/:id`), reactivate deactivated meals (`POST /meals/:id/reactivate`), and enter prices in dollars (e.g. `12.99`) instead of cents on the dashboard.
 - **Landing page "Two paths" section** — closing block with side-by-side `For diners` / `For restaurants` cards (each with an accent gradient bloom and a single primary CTA) so anonymous visitors immediately see both audiences the product serves.
 
 ### Changed
 
+- **`ARCHITECTURE.md` → `docs/ARCHITECTURE.md`** — colocate project docs under `docs/`; root keeps only tool-required and GitHub-surfaced files (`README`, `LICENSE`, `CHANGELOG`, `AGENTS`).
 - **Header nav restructured.** Desktop nav groups page links (Restaurants → Orders → Dashboard → Cart) and separates a utility cluster (theme toggle + account/auth) with a divider, instead of leading with the theme toggle. The whole cluster stays inside one `nav[aria-label="Primary"]` landmark.
 - **Brand surfaces & teal palette.** Replaced the muddy hero/auth gradient (which faded to a near-black brown) with a clean, saturated warm ramp + soft glow, shared between the landing hero and the auth brand panel. Promoted the lighter teal to the canonical `secondary.main` in both schemes (deeper `secondary.dark` retained for text on light tints); white text restored on light-mode teal buttons. Teal info alerts now share one `secondaryInfoAlertSx` helper so the shade is consistent per scheme. Removed the duplicative brand lockup from the auth card (the header already carries it).
 - **Demo conveniences gated & hardened.** Swagger UI is now behind `ENABLE_SWAGGER` (default on for the demo); the web container's nginx runs unprivileged on `8080` (`5173:8080`) with proxy timeouts and body-size limits; `api`/`web` compose services drop capabilities and set `no-new-privileges`. `.env.example` documents the prod-shape overrides.

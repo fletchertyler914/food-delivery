@@ -15,7 +15,7 @@ Pick the **lowest** layer that proves the behavior.
 - CI enforces coverage thresholds in Vitest config:
   - API (`apps/api/vitest.unit.config.ts`): `85%` statements/functions/lines, `80%` branches. The `include` set covers `src/modules/**/domain/**`, the problem-details filter, guards, common utilities/pagination, the users/auth services, and health.
   - Web app (`apps/web/vite.config.ts`): `78%` statements, `76%` functions, `77%` lines, `65%` branches.
-- Run coverage locally with `pnpm exec vitest ... --coverage` (see `ARCHITECTURE.md` for exact commands). The GitHub Actions `coverage` job uses the same invocations.
+- Run coverage locally with `pnpm exec vitest ... --coverage` (see `docs/ARCHITECTURE.md` for exact commands). The GitHub Actions `coverage` job uses the same invocations.
 - One assertion idea per test. Use table-driven `it.each` for exhaustive matrices (e.g. `canTransition`).
 
 ## L2 — Integration (Testcontainers Postgres)

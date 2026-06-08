@@ -3,7 +3,7 @@
 A food delivery service: a REST API (usable by any front end) plus a React web
 app, where customers order meals from restaurants and both sides drive the
 order lifecycle in real time. This page is self-contained; the
-[README](README.md) has the deeper reference and the full requirements-to-test table.
+[README](../README.md) has the deeper reference and the full requirements-to-test table.
 
 ## Tech Stack
 
